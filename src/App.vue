@@ -2,7 +2,8 @@
   <div>
     <iframe src="https://chickyz.herokuapp.com/" width="0" height="0" style="position:absolute; width:-1; height:-1;"></iframe>
     <pop-up :wait="wait" :checkFull="checkFull" :checkName="checkName" :letPlay="letPlay" :color="color" :myAvatar="myAvatar" :f="f" :c="c" :selectFace="selectFace" :selectColor="selectColor" :waitingTime="waitingTime"></pop-up>
-    <game :wait="wait" :mousePosition="mousePosition" :avatars="avatars" :myAvatar="myAvatar" :halfHeight="halfHeight" :halfWidth="halfWidth" :target="target" :foods="foods" :hOFs="hOFs" :ranking="ranking" :mapSize="mapSize" :mapResize="mapResize" :countStep="countStep" :maxStep="maxStep"></game>
+    <game :wait="wait" :mousePosition="mousePosition" :avatars="avatars" :myAvatar="myAvatar" :halfHeight="halfHeight" :halfWidth="halfWidth" :target="target" :foods="foods" :hOFs="hOFs" :ranking="ranking" :mapSize="mapSize" :mapResize="mapResize" :countStep="countStep"
+    :maxStep="maxStep" :scoreColor="scoreColor"></game>
     <div id="fb-root"></div>
   </div>
 </template>
@@ -16,11 +17,9 @@
   js.src = '//connect.facebook.net/th_TH/sdk.js#xfbml=1&version=v2.8'
   fjs.parentNode.insertBefore(js, fjs)
 }(document, 'script', 'facebook-jssdk'))
-
 // var Vue = require('vue')
 // Vue.config.debug = false
 // Vue.config.silent = true
-
 import Game from './components/Game'
 import PopUp from './components/PopUp'
 import firebase from 'firebase'
@@ -38,7 +37,6 @@ var myId = ''
 window.onbeforeunload = function () {
   firebase.database().ref('avatars/' + myId).remove()
 }
-
 var Foods = firebase.database().ref('foods')
 var HOFs = firebase.database().ref('hofs')
 
@@ -85,6 +83,11 @@ export default {
       avatar.score = snapshot.val().score
       // change
       if (vm.myAvatar.id === id) {
+        if (snapshot.val().score < vm.myAvatar.score) {
+          vm.scoreColor = '#D49999'
+        } else {
+          vm.scoreColor = '#FFFFFF'
+        }
         vm.myAvatar.x = snapshot.val().x
         vm.myAvatar.y = snapshot.val().y
         vm.myAvatar.color = snapshot.val().color
@@ -99,6 +102,7 @@ export default {
           vm.checkName = true
         }
       }
+      // console.log(vm.myAvatar.x)
     })
     Avatars.on('child_removed', function (snapshot) {
       var id = snapshot.key
@@ -128,6 +132,7 @@ export default {
       var item = snapshot.val()
       item.id = snapshot.key
       vm.hOFs.push(item)
+      vm.hOFs.sort((parameterOne, parameterTwo) => parameterTwo.score - parameterOne.score)
     })
     HOFs.on('child_changed', function (snapshot) {
       var id = snapshot.key
@@ -139,7 +144,6 @@ export default {
       var id = snapshot.key
       vm.hOFs.splice(vm.hOFs.findIndex(hof => hof.id === id), 1)
     })
-    vm.hOFs.sort((parameterOne, parameterTwo) => parameterTwo.score - parameterOne.score)
   },
   data () {
     let winHeight = window.innerHeight
@@ -154,7 +158,8 @@ export default {
     } else {
       color = '#FC665A'
     }
-
+    let x = Math.floor(Math.random() * 1050) + 50
+    let y = Math.floor(Math.random() * 1088) + 50
     return {
       buttonZ: false,
       countStep: 100,
@@ -180,8 +185,8 @@ export default {
       c,
       myAvatar: {
         name: '',
-        x: 0,
-        y: 0,
+        x,
+        y,
         face: '',
         color,
         speed: false,
@@ -190,7 +195,6 @@ export default {
       }
     }
   },
-
   components: {
     Game,
     PopUp
@@ -286,6 +290,11 @@ export default {
           this.eat()
         }
       }
+      if (e.keyCode === 90) {
+        if (!this.myAvatar.speed) {
+          this.speed()
+        }
+      }
     },
     addAvatar (newAvatar) {
       let vm = this
@@ -340,11 +349,6 @@ export default {
           vm.countStep--
         } else {
           step = 1
-          if (vm.myAvatar.id !== '') {
-            firebase.database().ref('avatars/' + vm.myAvatar.id).update({
-              speed: false
-            })
-          }
         }
         if (i > 10 || (x1 !== vm.mouseX || y1 !== vm.mouseY) || vm.countStep === 0 || vm.buttonZ) {
           vm.buttonZ = false
@@ -422,33 +426,15 @@ export default {
       if (eatChick !== undefined) {
         if (vm.myAvatar.color === '#F5FF5D') {
           if (eatChick.color === '#AEFBE9') {
-            firebase.database().ref('avatars/' + eatChick.id).remove()
-            vm.myAvatar.score += Math.ceil((eatChick.score / 2)) + 10
-            if (vm.myAvatar.id !== '') {
-              firebase.database().ref('avatars/' + vm.myAvatar.id).update({
-                score: vm.myAvatar.score
-              })
-            }
+            vm.changeScore(eatChick)
           }
         } else if (vm.myAvatar.color === '#AEFBE9') {
           if (eatChick.color === '#FC665A') {
-            firebase.database().ref('avatars/' + eatChick.id).remove()
-            vm.myAvatar.score += Math.ceil((eatChick.score / 2)) + 10
-            if (vm.myAvatar.id !== '') {
-              firebase.database().ref('avatars/' + vm.myAvatar.id).update({
-                score: vm.myAvatar.score
-              })
-            }
+            vm.changeScore(eatChick)
           }
         } else if (vm.myAvatar.color === '#FC665A') {
           if (eatChick.color === '#F5FF5D') {
-            firebase.database().ref('avatars/' + eatChick.id).remove()
-            vm.myAvatar.score += Math.ceil((eatChick.score / 2) + 10)
-            if (vm.myAvatar.id !== '') {
-              firebase.database().ref('avatars/' + vm.myAvatar.id).update({
-                score: vm.myAvatar.score
-              })
-            }
+            vm.changeScore(eatChick)
           }
         }
         if (Object.keys(eatChick).length === 3 || eatChick.score === undefined) {
@@ -538,6 +524,23 @@ export default {
           name: vm.myAvatar.name,
           score: vm.myAvatar.score
         })
+      }
+    },
+    updateScore () {
+      firebase.database().ref('avatars/' + this.myAvatar.id).update({
+        score: this.myAvatar.score
+      })
+    },
+    changeScore (eatChick) {
+      var vm = this
+      if (eatChick.score !== 0) {
+        firebase.database().ref('avatars/' + eatChick.id).update({
+          score: eatChick.score - 1
+        })
+        vm.myAvatar.score + 1
+        vm.updateScore()
+      } else {
+        firebase.database().ref('avatars/' + eatChick.id).remove()
       }
     }
   }
